@@ -3,6 +3,7 @@ import mysql.connector
 
 app = Flask(__name__)  
 
+
 @app.route('/user_register', methods=['POST'])
 def user_register():
     req = request.get_json()
