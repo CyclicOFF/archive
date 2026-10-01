@@ -82,7 +82,7 @@
     <div class="subtitle">Задайте любой вопрос — демо-режим</div>
 
     <div class="price-badge">
-        Стоимость одного запроса: <b>3 ₽</b>
+        Стоимость одного запроса: <b>{{ price }} ₽</b>
     </div>
 
     <div class="balance-line">
@@ -92,7 +92,7 @@
 
     <form id="ai-form">
         <textarea id="ai-prompt" placeholder="Например: расскажи анекдот про программистов"></textarea>
-        <button type="submit" id="ask-btn">Спросить за 3 ₽</button>
+        <button type="submit" id="ask-btn">Спросить за {{ price }} ₽</button>
     </form>
 
     <div class="answer-box" id="ai-answer">Здесь появится ответ...</div>

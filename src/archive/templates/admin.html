@@ -37,6 +37,27 @@
         .stat-card .value {
             font-size: 26px; font-weight: bold; color: #222; margin-top: 6px;
         }
+        
+                /* Настройки */
+        .settings-card {
+            background: white; border-radius: 10px; padding: 18px 22px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+            margin-bottom: 22px;
+            display: flex; justify-content: space-between;
+            align-items: center; flex-wrap: wrap; gap: 14px;
+        }
+        .settings-label { font-size: 15px; color: #333; font-weight: 600; }
+        .settings-controls {
+            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        .settings-controls input {
+            width: 90px; padding: 8px 10px; border: 1px solid #ccc;
+            border-radius: 6px; font-size: 15px;
+        }
+        .settings-controls .unit { color: #666; font-size: 14px; }
+        .status { font-size: 13px; margin-left: 6px; }
+        .status.ok  { color: #28a745; }
+        .status.err { color: #dc3545; }
 
         /* Таблица */
         .table-wrap {
@@ -106,7 +127,18 @@
             <div class="value">{{ total_balance }} ₽</div>
         </div>
     </div>
-
+        <div class="settings-card">
+        <div class="settings-label">
+            💰 Стоимость одного запроса к нейросети
+        </div>
+        <div class="settings-controls">
+            <input type="number" id="ai-price-input" min="0" step="1"
+                   value="{{ ai_price }}">
+            <span class="unit">₽ / запрос</span>
+            <button id="save-ai-price" class="btn save">Сохранить</button>
+            <span id="ai-price-status" class="status"></span>
+        </div>
+    </div>
     <div class="table-wrap">
         <table>
             <thead>
