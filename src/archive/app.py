@@ -57,7 +57,19 @@ def profile():
 def ai_page():
     if "user_id" not in session:
         return redirect(url_for("login_page"))
-    return render_template("ai.html")
+
+    cnx = get_db()
+    cur = cnx.cursor(dictionary=True)
+    cur.execute("SELECT balance FROM users WHERE id = %s",
+                (session["user_id"],))
+    row = cur.fetchone()
+    cur.close(); cnx.close()
+
+    if row is None:
+        session.clear()
+        return redirect(url_for("login_page"))
+
+    return render_template("ai.html", balance=row["balance"])
 
 
 # ---------- API ----------
@@ -125,15 +137,60 @@ def logout():
     return redirect(url_for("login_page"))
 
 
+AI_PRICE = 3   # стоимость одного запроса в рублях
+
+
 @app.route("/ai_request", methods=["POST"])
 def ai_request():
+    if "user_id" not in session:
+        return jsonify({"status": "error",
+                        "message": "Не авторизован"}), 401
+
     data = request.get_json() or {}
     prompt = (data.get("prompt") or "").strip()
     if not prompt:
-        return jsonify({"status": "error", "message": "Введите запрос"}), 400
+        return jsonify({"status": "error",
+                        "message": "Введите запрос"}), 400
+
+    cnx = get_db()
+    cur = cnx.cursor(dictionary=True)
+
+    # 1. Читаем текущий баланс
+    cur.execute("SELECT balance FROM users WHERE id = %s",
+                (session["user_id"],))
+    row = cur.fetchone()
+
+    if row is None:
+        cur.close(); cnx.close()
+        return jsonify({"status": "error",
+                        "message": "Пользователь не найден"}), 404
+
+    if row["balance"] < AI_PRICE:
+        cur.close(); cnx.close()
+        return jsonify({
+            "status": "error",
+            "message": f"Недостаточно средств. Нужно {AI_PRICE} ₽, у вас {row['balance']} ₽"
+        }), 402
+
+    # 2. Списываем 3 рубля одним запросом
+    cur.execute(
+        "UPDATE users SET balance = balance - %s WHERE id = %s",
+        (AI_PRICE, session["user_id"])
+    )
+    cnx.commit()
+
+    # 3. Отдаём новый баланс клиенту
+    cur.execute("SELECT balance FROM users WHERE id = %s",
+                (session["user_id"],))
+    new_balance = cur.fetchone()["balance"]
+
+    cur.close(); cnx.close()
+
     return jsonify({
         "status": "ok",
-        "answer": f"[Демо-ответ нейросети на запрос: «{prompt}»]"
+        "answer": f"[Демо-ответ нейросети на запрос: «{prompt}»]",
+        "balance": new_balance,
+        "spent": AI_PRICE
     })
 
 

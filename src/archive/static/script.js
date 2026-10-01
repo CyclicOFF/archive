@@ -66,12 +66,18 @@ $(document).ready(function () {
     });
 
     // ---------- ЗАПРОС К НЕЙРОСЕТИ ----------
+    // ---------- ЗАПРОС К НЕЙРОСЕТИ ----------
     $('#ai-form').on('submit', function (e) {
         e.preventDefault();
+
         const prompt = $('#ai-prompt').val().trim();
         if (!prompt) return;
 
-        $('#ai-answer').text('Думаю...');
+        const $btn    = $('#ask-btn');
+        const $answer = $('#ai-answer');
+
+        $btn.prop('disabled', true);
+        $answer.removeClass('error').text('Думаю...');
 
         $.ajax({
             url: '/ai_request',
@@ -80,10 +86,24 @@ $(document).ready(function () {
             data: JSON.stringify({ prompt: prompt })
         })
         .done(function (res) {
-            $('#ai-answer').text(res.answer || '');
+            $answer.text(res.answer || '');
+            // Обновляем баланс, не перезагружая страницу
+            if (typeof res.balance !== 'undefined') {
+                $('#balance-value').text(res.balance);
+            }
         })
-        .fail(function () {
-            $('#ai-answer').text('Ошибка запроса');
+        .fail(function (xhr) {
+            const msg = (xhr.responseJSON && xhr.responseJSON.message)
+                        || 'Ошибка запроса';
+            $answer.addClass('error').text(msg);
+
+            // Если сервер вернул актуальный баланс — покажем его
+            if (xhr.responseJSON && typeof xhr.responseJSON.balance !== 'undefined') {
+                $('#balance-value').text(xhr.responseJSON.balance);
+            }
+        })
+        .always(function () {
+            $btn.prop('disabled', false);
         });
     });
 });

@@ -16,7 +16,34 @@
             width: 100%; max-width: 560px;
         }
         .ai-card h1 { margin: 0 0 6px; font-size: 22px; color: #222; }
-        .ai-card .subtitle { color: #888; font-size: 14px; margin-bottom: 22px; }
+        .ai-card .subtitle { color: #888; font-size: 14px; margin-bottom: 12px; }
+
+        .price-badge {
+            display: inline-block;
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            margin-bottom: 18px;
+        }
+        .price-badge b { color: #d97706; }
+
+        .balance-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 18px;
+        }
+        .balance-line .value { font-weight: bold; color: #222; font-size: 16px; }
+
         textarea {
             width: 100%; min-height: 110px; resize: vertical;
             padding: 12px; border: 1px solid #ccc; border-radius: 8px;
@@ -28,11 +55,18 @@
             font-size: 15px; cursor: pointer; transition: background .3s;
         }
         #ask-btn:hover { background: #59339d; }
+        #ask-btn:disabled { background: #b8a5e0; cursor: not-allowed; }
+
         .answer-box {
             margin-top: 24px; padding: 16px; border-radius: 8px;
             background: #f8f9fa; border: 1px solid #e9ecef;
             color: #333; min-height: 60px; white-space: pre-wrap;
             font-size: 15px;
+        }
+        .answer-box.error {
+            background: #fdecea;
+            border-color: #f5c6cb;
+            color: #b71c1c;
         }
         .back {
             display: inline-block; margin-top: 20px;
@@ -47,9 +81,18 @@
     <h1>Запрос к нейросети</h1>
     <div class="subtitle">Задайте любой вопрос — демо-режим</div>
 
+    <div class="price-badge">
+        Стоимость одного запроса: <b>3 ₽</b>
+    </div>
+
+    <div class="balance-line">
+        <span>Ваш баланс</span>
+        <span class="value"><span id="balance-value">{{ balance }}</span> ₽</span>
+    </div>
+
     <form id="ai-form">
         <textarea id="ai-prompt" placeholder="Например: расскажи анекдот про программистов"></textarea>
-        <button type="submit" id="ask-btn">Спросить</button>
+        <button type="submit" id="ask-btn">Спросить за 3 ₽</button>
     </form>
 
     <div class="answer-box" id="ai-answer">Здесь появится ответ...</div>
