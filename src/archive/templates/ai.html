@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Нейросеть</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif; background: #f0f2f5;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;
+        }
+        .ai-card {
+            background: white; border-radius: 12px; padding: 30px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+            width: 100%; max-width: 560px;
+        }
+        .ai-card h1 { margin: 0 0 6px; font-size: 22px; color: #222; }
+        .ai-card .subtitle { color: #888; font-size: 14px; margin-bottom: 22px; }
+        textarea {
+            width: 100%; min-height: 110px; resize: vertical;
+            padding: 12px; border: 1px solid #ccc; border-radius: 8px;
+            font-family: inherit; font-size: 15px; box-sizing: border-box;
+        }
+        #ask-btn {
+            margin-top: 12px; padding: 12px 22px; border: none;
+            border-radius: 8px; background: #6f42c1; color: white;
+            font-size: 15px; cursor: pointer; transition: background .3s;
+        }
+        #ask-btn:hover { background: #59339d; }
+        .answer-box {
+            margin-top: 24px; padding: 16px; border-radius: 8px;
+            background: #f8f9fa; border: 1px solid #e9ecef;
+            color: #333; min-height: 60px; white-space: pre-wrap;
+            font-size: 15px;
+        }
+        .back {
+            display: inline-block; margin-top: 20px;
+            color: #007bff; text-decoration: none; font-size: 14px;
+        }
+        .back:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<div class="ai-card">
+    <h1>Запрос к нейросети</h1>
+    <div class="subtitle">Задайте любой вопрос — демо-режим</div>
+
+    <form id="ai-form">
+        <textarea id="ai-prompt" placeholder="Например: расскажи анекдот про программистов"></textarea>
+        <button type="submit" id="ask-btn">Спросить</button>
+    </form>
+
+    <div class="answer-box" id="ai-answer">Здесь появится ответ...</div>
+
+    <a class="back" href="/profile">← Назад в личный кабинет</a>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.js"
+        integrity="sha512-+k1pnlgt4F1H8L7t3z95o3/KO+o78INEcXTbnoJQ/F2VqDVhWoaiVml/OEHv9HsVgxUaVW+IbiZPUJQfF/YxZw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

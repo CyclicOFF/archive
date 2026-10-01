@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Личный кабинет</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif; background: #f0f2f5;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;
+        }
+        .profile-card {
+            background: white; border-radius: 12px; padding: 30px;
+            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+            width: 100%; max-width: 480px;
+        }
+        .profile-card h1 { margin: 0 0 8px; font-size: 22px; color: #222; }
+        .profile-card .subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
+        .info-row {
+            display: flex; justify-content: space-between;
+            padding: 12px 0; border-bottom: 1px solid #eee;
+        }
+        .info-row:last-of-type { border-bottom: none; }
+        .info-row .label { color: #666; }
+        .info-row .value { font-weight: 600; color: #222; }
+        .balance {
+            margin-top: 20px; padding: 18px; border-radius: 10px;
+            background: linear-gradient(135deg,#007bff,#0056b3);
+            color: white; text-align: center;
+        }
+        .balance .amount { font-size: 28px; font-weight: bold; margin-top: 6px; }
+        .actions {
+            display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap;
+        }
+        .actions button, .actions a {
+            flex: 1 1 46%; text-align: center; text-decoration: none;
+            padding: 12px; border-radius: 8px; font-size: 15px;
+            cursor: pointer; border: none; transition: background .3s;
+        }
+        #send-money-btn { background: #28a745; color: white; }
+        #send-money-btn:hover { background: #218838; }
+        .ai-link { background: #6f42c1; color: white; }
+        .ai-link:hover { background: #59339d; }
+        .logout {
+            display: block; text-align: center; margin-top: 18px;
+            color: #999; font-size: 13px; text-decoration: none;
+        }
+        .logout:hover { color: #555; }
+    </style>
+</head>
+<body>
+
+<div class="profile-card">
+    <h1>Личный кабинет</h1>
+    <div class="subtitle">{{ user.email }}</div>
+
+    <div class="info-row">
+        <span class="label">Имя</span>
+        <span class="value">{{ user.username }}</span>
+    </div>
+    <div class="info-row">
+        <span class="label">Фамилия</span>
+        <span class="value">{{ user.surname or '—' }}</span>
+    </div>
+
+    <div class="balance">
+        <div>Баланс</div>
+        <div class="amount">{{ user.balance }} ₽</div>
+    </div>
+
+    <div class="actions">
+        <button id="send-money-btn" type="button">Отдать деньги</button>
+        <a class="ai-link" href="/ai">Спросить нейросеть</a>
+    </div>
+
+    <a class="logout" href="/logout">Выйти из аккаунта</a>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.js"
+        integrity="sha512-+k1pnlgt4F1H8L7t3z95o3/KO+o78INEcXTbnoJQ/F2VqDVhWoaiVml/OEHv9HsVgxUaVW+IbiZPUJQfF/YxZw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
