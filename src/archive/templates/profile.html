@@ -68,7 +68,14 @@
         <div>Баланс</div>
         <div class="amount">{{ user.balance }} ₽</div>
     </div>
-
+    {% if user.is_admin %}
+    <a class="admin-link" href="/admin"
+       style="display:block;text-align:center;margin-bottom:14px;
+              padding:12px;border-radius:8px;background:#dc3545;
+              color:white;text-decoration:none;font-size:15px;">
+        Админ-панель
+    </a>
+    {% endif %}
     <div class="actions">
         <button id="send-money-btn" type="button">Отдать деньги</button>
         <a class="ai-link" href="/ai">Спросить нейросеть</a>

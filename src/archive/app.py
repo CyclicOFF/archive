@@ -1,11 +1,11 @@
 from flask import (Flask, render_template, request, jsonify,
-                   session, redirect, url_for)
+                   session, redirect, url_for, abort)
+from functools import wraps
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = "change-me-to-a-random-long-string"
-
 
 DB_CONFIG = {
     "host": "185.114.247.43",
@@ -14,10 +14,41 @@ DB_CONFIG = {
     "user": "sch688_vvedenie",
     "password": "Qwerty123",
 }
+AI_PRICE = 3
 
 
 def get_db():
     return mysql.connector.connect(**DB_CONFIG)
+
+
+# ---------- Декораторы ----------
+def login_required(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login_page"))
+        return f(*args, **kwargs)
+    return wrapper
+
+
+def admin_required(f):
+    """Только для админов. Проверяет флаг is_admin в БД (свежий)."""
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        if "user_id" not in session:
+            return redirect(url_for("login_page"))
+
+        cnx = get_db()
+        cur = cnx.cursor(dictionary=True)
+        cur.execute("SELECT is_admin FROM users WHERE id = %s",
+                    (session["user_id"],))
+        row = cur.fetchone()
+        cur.close(); cnx.close()
+
+        if not row or not row["is_admin"]:
+            abort(403)   # Forbidden
+        return f(*args, **kwargs)
+    return wrapper
 
 
 # ---------- Страницы ----------
@@ -32,19 +63,17 @@ def login_page():
 
 
 @app.route("/profile")
+@login_required
 def profile():
-    if "user_id" not in session:
-        return redirect(url_for("login_page"))
-
     cnx = get_db()
     cur = cnx.cursor(dictionary=True)
     cur.execute(
-        "SELECT username, surname, email, balance FROM users WHERE id = %s",
+        "SELECT username, surname, email, balance, is_admin "
+        "FROM users WHERE id = %s",
         (session["user_id"],)
     )
     user = cur.fetchone()
-    cur.close()
-    cnx.close()
+    cur.close(); cnx.close()
 
     if user is None:
         session.clear()
@@ -54,10 +83,8 @@ def profile():
 
 
 @app.route("/ai")
+@login_required
 def ai_page():
-    if "user_id" not in session:
-        return redirect(url_for("login_page"))
-
     cnx = get_db()
     cur = cnx.cursor(dictionary=True)
     cur.execute("SELECT balance FROM users WHERE id = %s",
@@ -69,10 +96,10 @@ def ai_page():
         session.clear()
         return redirect(url_for("login_page"))
 
-    return render_template("ai.html", balance=row["balance"])
+    return render_template("ai.html", balance=row["balance"], price=AI_PRICE)
 
 
-# ---------- API ----------
+# ---------- API регистрации / входа ----------
 @app.route("/user_register", methods=["POST"])
 def user_register():
     req = request.get_json() or {}
@@ -102,7 +129,6 @@ def user_register():
     )
     cnx.commit()
     cur.close(); cnx.close()
-
     return jsonify({"status": "ok", "redirect": "/login"})
 
 
@@ -115,7 +141,8 @@ def user_login():
     cnx = get_db()
     cur = cnx.cursor(dictionary=True)
     cur.execute(
-        "SELECT id, username, password_hash FROM users WHERE email = %s",
+        "SELECT id, username, password_hash, is_admin "
+        "FROM users WHERE email = %s",
         (email,)
     )
     user = cur.fetchone()
@@ -127,8 +154,11 @@ def user_login():
 
     session["user_id"]  = user["id"]
     session["username"] = user["username"]
+    session["is_admin"] = bool(user["is_admin"])   # удобно для шаблонов
 
-    return jsonify({"status": "ok", "redirect": "/profile"})
+    # Админов сразу ведём в админку
+    redirect_to = "/admin" if user["is_admin"] else "/profile"
+    return jsonify({"status": "ok", "redirect": redirect_to})
 
 
 @app.route("/logout")
@@ -137,29 +167,21 @@ def logout():
     return redirect(url_for("login_page"))
 
 
-AI_PRICE = 3   # стоимость одного запроса в рублях
-
-
+# ---------- AI ----------
 @app.route("/ai_request", methods=["POST"])
+@login_required
 def ai_request():
-    if "user_id" not in session:
-        return jsonify({"status": "error",
-                        "message": "Не авторизован"}), 401
-
     data = request.get_json() or {}
     prompt = (data.get("prompt") or "").strip()
     if not prompt:
-        return jsonify({"status": "error",
-                        "message": "Введите запрос"}), 400
+        return jsonify({"status": "error", "message": "Введите запрос"}), 400
 
     cnx = get_db()
     cur = cnx.cursor(dictionary=True)
 
-    # 1. Читаем текущий баланс
     cur.execute("SELECT balance FROM users WHERE id = %s",
                 (session["user_id"],))
     row = cur.fetchone()
-
     if row is None:
         cur.close(); cnx.close()
         return jsonify({"status": "error",
@@ -172,18 +194,15 @@ def ai_request():
             "message": f"Недостаточно средств. Нужно {AI_PRICE} ₽, у вас {row['balance']} ₽"
         }), 402
 
-    # 2. Списываем 3 рубля одним запросом
     cur.execute(
         "UPDATE users SET balance = balance - %s WHERE id = %s",
         (AI_PRICE, session["user_id"])
     )
     cnx.commit()
 
-    # 3. Отдаём новый баланс клиенту
     cur.execute("SELECT balance FROM users WHERE id = %s",
                 (session["user_id"],))
     new_balance = cur.fetchone()["balance"]
-
     cur.close(); cnx.close()
 
     return jsonify({
@@ -192,6 +211,119 @@ def ai_request():
         "balance": new_balance,
         "spent": AI_PRICE
     })
+
+
+# ==========================================================
+# ==============           АДМИНКА           ===============
+# ==========================================================
+
+@app.route("/admin")
+@admin_required
+def admin_page():
+    cnx = get_db()
+    cur = cnx.cursor(dictionary=True)
+    cur.execute(
+        "SELECT id, username, surname, email, balance, is_admin, created_at "
+        "FROM users ORDER BY id ASC"
+    )
+    users = cur.fetchall()
+
+    cur.execute("SELECT COUNT(*) AS c FROM users")
+    total_users = cur.fetchone()["c"]
+
+    cur.execute("SELECT COALESCE(SUM(balance),0) AS s FROM users")
+    total_balance = cur.fetchone()["s"]
+
+    cur.execute("SELECT COUNT(*) AS c FROM users WHERE is_admin = 1")
+    total_admins = cur.fetchone()["c"]
+
+    cur.close(); cnx.close()
+
+    return render_template(
+        "admin.html",
+        users=users,
+        total_users=total_users,
+        total_balance=total_balance,
+        total_admins=total_admins,
+    )
+
+
+@app.route("/admin/user/<int:user_id>/balance", methods=["POST"])
+@admin_required
+def admin_set_balance(user_id):
+    data = request.get_json() or {}
+    try:
+        new_balance = int(data.get("balance"))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error",
+                        "message": "Баланс должен быть числом"}), 400
+
+    cnx = get_db()
+    cur = cnx.cursor()
+    cur.execute("SELECT id FROM users WHERE id = %s", (user_id,))
+    if not cur.fetchone():
+        cur.close(); cnx.close()
+        return jsonify({"status": "error",
+                        "message": "Пользователь не найден"}), 404
+
+    cur.execute("UPDATE users SET balance = %s WHERE id = %s",
+                (new_balance, user_id))
+    cnx.commit()
+    cur.close(); cnx.close()
+
+    return jsonify({"status": "ok", "balance": new_balance})
+
+
+@app.route("/admin/user/<int:user_id>/toggle_admin", methods=["POST"])
+@admin_required
+def admin_toggle_admin(user_id):
+    if user_id == session["user_id"]:
+        return jsonify({"status": "error",
+                        "message": "Нельзя снять права с самого себя"}), 400
+
+    cnx = get_db()
+    cur = cnx.cursor(dictionary=True)
+    cur.execute("SELECT is_admin FROM users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    if not row:
+        cur.close(); cnx.close()
+        return jsonify({"status": "error",
+                        "message": "Пользователь не найден"}), 404
+
+    new_flag = 0 if row["is_admin"] else 1
+    cur.execute("UPDATE users SET is_admin = %s WHERE id = %s",
+                (new_flag, user_id))
+    cnx.commit()
+    cur.close(); cnx.close()
+
+    return jsonify({"status": "ok", "is_admin": new_flag})
+
+
+@app.route("/admin/user/<int:user_id>/delete", methods=["POST"])
+@admin_required
+def admin_delete_user(user_id):
+    if user_id == session["user_id"]:
+        return jsonify({"status": "error",
+                        "message": "Нельзя удалить самого себя"}), 400
+
+    cnx = get_db()
+    cur = cnx.cursor()
+    cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+    cnx.commit()
+    affected = cur.rowcount
+    cur.close(); cnx.close()
+
+    if affected == 0:
+        return jsonify({"status": "error",
+                        "message": "Пользователь не найден"}), 404
+
+    return jsonify({"status": "ok"})
+
+
+# ---------- 403 страница ----------
+@app.errorhandler(403)
+def forbidden(e):
+    return render_template("403.html"), 403
 
 
 if __name__ == "__main__":
