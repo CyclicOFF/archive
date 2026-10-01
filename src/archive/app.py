@@ -3,6 +3,12 @@ from flask import (Flask, render_template, request, jsonify,
 from functools import wraps
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
+import os
+from gigachat import GigaChat
+from gigachat.models import Chat, Messages, MessagesRole
+
+# Ключ лучше хранить в переменной окружения
+GIGACHAT_CREDENTIALS = os.getenv("GIGACHAT_KEY", "MDFhMGY3NzQtMGRjYS03OTE4LWE1ZTQtYjFkNzQyMTc3OGY5Ojg4OWI2MmMwLThiOGUtNDllOS1hYTZiLTNiMWYyMTc5ZDI4MA==")
 
 app = Flask(__name__)
 app.secret_key = "change-me-to-a-random-long-string"
@@ -204,11 +210,10 @@ def ai_request():
     if not prompt:
         return jsonify({"status": "error", "message": "Введите запрос"}), 400
 
-    price = get_ai_price()   # ← читаем из БД
+    price = get_ai_price()
 
     cnx = get_db()
     cur = cnx.cursor(dictionary=True)
-
     cur.execute("SELECT balance FROM users WHERE id = %s",
                 (session["user_id"],))
     row = cur.fetchone()
@@ -224,6 +229,27 @@ def ai_request():
             "message": f"Недостаточно средств. Нужно {price} ₽, у вас {row['balance']} ₽"
         }), 402
 
+    # === ЗАПРОС К GIGACHAT ===
+    try:
+        with GigaChat(
+            credentials=GIGACHAT_CREDENTIALS,
+            verify_ssl_certs=False,   # для РФ-сертификатов
+        ) as giga:
+            response = giga.chat(
+                Chat(messages=[
+                    Messages(role=MessagesRole.USER, content=prompt)
+                ])
+            )
+            answer = response.choices[0].message.content
+    except Exception as e:
+        cur.close(); cnx.close()
+        return jsonify({
+            "status": "error",
+            "message": f"Ошибка нейросети: {str(e)}"
+        }), 502
+    # =========================
+
+    # Списываем деньги только ПОСЛЕ успешного ответа
     cur.execute(
         "UPDATE users SET balance = balance - %s WHERE id = %s",
         (price, session["user_id"])
@@ -237,7 +263,7 @@ def ai_request():
 
     return jsonify({
         "status": "ok",
-        "answer": f"[Демо-ответ нейросети на запрос: «{prompt}»]",
+        "answer": answer,
         "balance": new_balance,
         "spent": price
     })
