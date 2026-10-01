@@ -14,7 +14,33 @@ DB_CONFIG = {
     "user": "sch688_vvedenie",
     "password": "Qwerty123",
 }
-AI_PRICE = 3
+
+DEFAULT_AI_PRICE = 3
+
+
+def get_ai_price():
+    """Читает цену запроса из БД. Если что-то не так — возвращает дефолт."""
+    try:
+        cnx = get_db()
+        cur = cnx.cursor(dictionary=True)
+        cur.execute("SELECT `value` FROM settings WHERE `key` = 'ai_price'")
+        row = cur.fetchone()
+        cur.close(); cnx.close()
+        return int(row["value"]) if row else DEFAULT_AI_PRICE
+    except Exception:
+        return DEFAULT_AI_PRICE
+
+
+def set_ai_price(new_price):
+    cnx = get_db()
+    cur = cnx.cursor()
+    cur.execute(
+        "INSERT INTO settings (`key`, `value`) VALUES ('ai_price', %s) "
+        "ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+        (str(new_price),)
+    )
+    cnx.commit()
+    cur.close(); cnx.close()
 
 
 def get_db():
@@ -96,7 +122,9 @@ def ai_page():
         session.clear()
         return redirect(url_for("login_page"))
 
-    return render_template("ai.html", balance=row["balance"], price=AI_PRICE)
+    return render_template("ai.html",
+                           balance=row["balance"],
+                           price=get_ai_price())
 
 
 # ---------- API регистрации / входа ----------
@@ -176,6 +204,8 @@ def ai_request():
     if not prompt:
         return jsonify({"status": "error", "message": "Введите запрос"}), 400
 
+    price = get_ai_price()   # ← читаем из БД
+
     cnx = get_db()
     cur = cnx.cursor(dictionary=True)
 
@@ -187,16 +217,16 @@ def ai_request():
         return jsonify({"status": "error",
                         "message": "Пользователь не найден"}), 404
 
-    if row["balance"] < AI_PRICE:
+    if row["balance"] < price:
         cur.close(); cnx.close()
         return jsonify({
             "status": "error",
-            "message": f"Недостаточно средств. Нужно {AI_PRICE} ₽, у вас {row['balance']} ₽"
+            "message": f"Недостаточно средств. Нужно {price} ₽, у вас {row['balance']} ₽"
         }), 402
 
     cur.execute(
         "UPDATE users SET balance = balance - %s WHERE id = %s",
-        (AI_PRICE, session["user_id"])
+        (price, session["user_id"])
     )
     cnx.commit()
 
@@ -209,7 +239,7 @@ def ai_request():
         "status": "ok",
         "answer": f"[Демо-ответ нейросети на запрос: «{prompt}»]",
         "balance": new_balance,
-        "spent": AI_PRICE
+        "spent": price
     })
 
 
@@ -245,7 +275,29 @@ def admin_page():
         total_users=total_users,
         total_balance=total_balance,
         total_admins=total_admins,
+        ai_price=get_ai_price(),   # ← NEW
     )
+
+@app.route("/admin/settings/ai_price", methods=["POST"])
+@admin_required
+def admin_set_ai_price():
+    data = request.get_json() or {}
+    try:
+        new_price = int(data.get("price"))
+    except (TypeError, ValueError):
+        return jsonify({"status": "error",
+                        "message": "Цена должна быть целым числом"}), 400
+
+    if new_price < 0:
+        return jsonify({"status": "error",
+                        "message": "Цена не может быть отрицательной"}), 400
+
+    if new_price > 100000:
+        return jsonify({"status": "error",
+                        "message": "Слишком большая цена"}), 400
+
+    set_ai_price(new_price)
+    return jsonify({"status": "ok", "price": new_price})
 
 
 @app.route("/admin/user/<int:user_id>/balance", methods=["POST"])

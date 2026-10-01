@@ -84,6 +84,15 @@ def revoke_admin(email):
 #  ГЛАВНЫЙ БЛОК — тут меняйте, что именно сделать
 # ============================================================
 if __name__ == "__main__":
+    run_sql(
+    "CREATE TABLE IF NOT EXISTS settings ("
+    "  `key` VARCHAR(50) PRIMARY KEY,"
+    "  `value` VARCHAR(255) NOT NULL"
+    ")", fetch=False)
+    # run_sql(
+    # "INSERT INTO settings (`key`, `value`) VALUES ('ai_price', '3') "
+    # "ON DUPLICATE KEY UPDATE `value` = `value`", fetch=False)
+    # print("Таблица settings готова")
 
     print("=== Шаг 1. Проверяю / создаю колонку is_admin ===")
     add_column_if_missing("users", "is_admin",
@@ -94,11 +103,11 @@ if __name__ == "__main__":
 
     # --- Раскомментируйте нужное ниже ---
 
-    print("\n=== Выдаю админку ===")
-    grant_admin("scherbinmihail@mail.ru")
+    #print("\n=== Выдаю админку ===")
+    #grant_admin("scherbinmihail@mail.ru")
 
     # print("\n=== Снимаю админку ===")
     # revoke_admin("admin@mail.ru")
 
-    print("\n=== Итоговое состояние ===")
-    show_users()
+    #print("\n=== Итоговое состояние ===")
+    #show_users()

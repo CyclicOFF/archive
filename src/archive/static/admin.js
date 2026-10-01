@@ -76,4 +76,26 @@ $(document).ready(function () {
             $row.css('background-color', original);
         }, 700);
     }
+    
+        // --- Сохранение цены AI ---
+    $('#save-ai-price').on('click', function () {
+        const price  = parseInt($('#ai-price-input').val(), 10);
+        const $status = $('#ai-price-status');
+
+        if (isNaN(price) || price < 0) {
+            $status.removeClass('ok').addClass('err')
+                   .text('Введите целое неотрицательное число');
+            return;
+        }
+
+        postJSON('/admin/settings/ai_price', { price: price }, function (res) {
+            $('#ai-price-input').val(res.price);
+            $status.removeClass('err').addClass('ok')
+                   .text('✓ Сохранено');
+            setTimeout(function () { $status.text('').removeClass('ok'); }, 2000);
+        }, function () {
+            $status.removeClass('ok').addClass('err')
+                   .text('Ошибка сохранения');
+        });
+    });
 });
