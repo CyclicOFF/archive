@@ -4,8 +4,8 @@ from functools import wraps
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
-from gigachat import GigaChat
-from gigachat.models import Chat, Messages, MessagesRole
+from gigachat import GigaChatSyncClient
+from gigachat.models import ChatCompletionRequest, ChatMessage
 
 # Ключ лучше хранить в переменной окружения
 GIGACHAT_CREDENTIALS = os.getenv("GIGACHAT_KEY", "MDFhMGY3NzQtMGRjYS03OTE4LWE1ZTQtYjFkNzQyMTc3OGY5Ojg4OWI2MmMwLThiOGUtNDllOS1hYTZiLTNiMWYyMTc5ZDI4MA==")
@@ -231,16 +231,23 @@ def ai_request():
 
     # === ЗАПРОС К GIGACHAT ===
     try:
-        with GigaChat(
+        from gigachat.models import ChatCompletionRequest, ChatMessage
+
+        with GigaChatSyncClient(
             credentials=GIGACHAT_CREDENTIALS,
-            verify_ssl_certs=False,   # для РФ-сертификатов
+            base_url="https://api.giga.chat/v1",
+            model="GigaChat-2",
+            scope="GIGACHAT_API_PERS",
+            verify_ssl_certs=False,
         ) as giga:
-            response = giga.chat(
-                Chat(messages=[
-                    Messages(role=MessagesRole.USER, content=prompt)
-                ])
+            ai_chat = ChatCompletionRequest(
+                model="GigaChat-2",
+                messages=[
+                    ChatMessage(role="user", content=prompt)
+                ]
             )
-            answer = response.choices[0].message.content
+            response = giga.chat.create(ai_chat)
+            answer = response.messages[0].content[0].text
     except Exception as e:
         cur.close(); cnx.close()
         return jsonify({
