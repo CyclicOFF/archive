@@ -4,21 +4,24 @@ from functools import wraps
 import mysql.connector
 from werkzeug.security import generate_password_hash, check_password_hash
 import os
+from dotenv import load_dotenv
 from gigachat import GigaChat
 from gigachat.models import Chat, Messages, MessagesRole
 
-# Ключ лучше хранить в переменной окружения
-GIGACHAT_CREDENTIALS = os.getenv("GIGACHAT_KEY", "MDFhMGY3NzQtMGRjYS03OTE4LWE1ZTQtYjFkNzQyMTc3OGY5Ojg4OWI2MmMwLThiOGUtNDllOS1hYTZiLTNiMWYyMTc5ZDI4MA==")
+# Загружаем переменные окружения из .env файла
+load_dotenv()
+
+GIGACHAT_CREDENTIALS = os.getenv("GIGACHAT_KEY")
 
 app = Flask(__name__)
-app.secret_key = "change-me-to-a-random-long-string"
+app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback-secret-key")
 
 DB_CONFIG = {
-    "host": "185.114.247.43",
-    "port": 3306,
-    "database": "sch688_vvedenie",
-    "user": "sch688_vvedenie",
-    "password": "Qwerty123",
+    "host": os.getenv("DB_HOST"),
+    "port": int(os.getenv("DB_PORT", 3306)),
+    "database": os.getenv("DB_NAME"),
+    "user": os.getenv("DB_USER"),
+    "password": os.getenv("DB_PASSWORD"),
 }
 
 DEFAULT_AI_PRICE = 3
