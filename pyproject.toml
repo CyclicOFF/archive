@@ -6,7 +6,9 @@ readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
     "flask>=3.0.3",
+    "gigachat>=0.2.3",
     "mysql-connector-python>=9.0.0",
+    "python-dotenv>=1.0.1",
 ]
 
 [project.scripts]
