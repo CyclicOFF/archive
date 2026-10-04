@@ -1,5 +1,17 @@
 $(document).ready(function () {
 
+    const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 3000,
+        timerProgressBar: true,
+        didOpen: (toast) => {
+            toast.addEventListener('mouseenter', Swal.stopTimer)
+            toast.addEventListener('mouseleave', Swal.resumeTimer)
+        }
+    });
+
     function postJSON(url, data, onSuccess, onError) {
         $.ajax({
             url: url,
@@ -9,9 +21,8 @@ $(document).ready(function () {
         })
         .done(function (res) { onSuccess && onSuccess(res); })
         .fail(function (xhr) {
-            const msg = (xhr.responseJSON && xhr.responseJSON.message)
-                        || 'Ошибка запроса';
-            alert(msg);
+            const msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка запроса';
+            Toast.fire({ icon: 'error', title: msg });
             onError && onError(xhr);
         });
     }
@@ -23,13 +34,14 @@ $(document).ready(function () {
         const value = parseInt($row.find('[data-balance-input]').val(), 10);
 
         if (isNaN(value) || value < 0) {
-            alert('Баланс должен быть целым неотрицательным числом');
+            Toast.fire({ icon: 'warning', title: 'Баланс должен быть целым неотрицательным числом' });
             return;
         }
 
         postJSON(`/admin/user/${id}/balance`, { balance: value }, function (res) {
             $row.find('[data-balance-input]').val(res.balance);
-            flashRow($row, '#d4edda');
+            Toast.fire({ icon: 'success', title: 'Баланс обновлен' });
+            flashRow($row, 'bg-green-100');
         });
     });
 
@@ -43,11 +55,17 @@ $(document).ready(function () {
         postJSON(`/admin/user/${id}/toggle_admin`, {}, function (res) {
             const isAdmin = res.is_admin === 1;
             const $badge  = $row.find('[data-role-badge]');
-            $badge.text(isAdmin ? 'Админ' : 'Пользователь')
-                  .toggleClass('admin', isAdmin)
-                  .toggleClass('user', !isAdmin);
-            $btn.text(isAdmin ? 'Разжаловать' : 'Назначить админом');
-            flashRow($row, '#fff3cd');
+            
+            if (isAdmin) {
+                $badge.text('Администратор').removeClass('bg-gray-100 text-gray-700').addClass('bg-purple-100 text-purple-700');
+                $btn.text('Разжаловать');
+            } else {
+                $badge.text('Пользователь').removeClass('bg-purple-100 text-purple-700').addClass('bg-gray-100 text-gray-700');
+                $btn.text('В админы');
+            }
+            
+            Toast.fire({ icon: 'success', title: 'Роль изменена' });
+            flashRow($row, 'bg-amber-50');
         })
         .always(function () {
             $btn.prop('disabled', false);
@@ -60,42 +78,57 @@ $(document).ready(function () {
         const id   = $row.data('user-id');
         const name = $row.find('td').eq(1).text().trim();
 
-        if (!confirm(`Удалить пользователя "${name}" (id=${id})? Действие необратимо.`))
-            return;
-
-        postJSON(`/admin/user/${id}/delete`, {}, function () {
-            $row.fadeOut(250, function () { $(this).remove(); });
+        Swal.fire({
+            title: 'Вы уверены?',
+            text: `Удалить пользователя ${name} (ID: ${id})? Это действие необратимо.`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Да, удалить',
+            cancelButtonText: 'Отмена'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                postJSON(`/admin/user/${id}/delete`, {}, function () {
+                    $row.fadeOut(300, function () { $(this).remove(); });
+                    Toast.fire({ icon: 'success', title: 'Пользователь удален' });
+                });
+            }
         });
     });
 
-    // Вспышка цвета — визуальный фидбек
-    function flashRow($row, color) {
-        const original = $row.css('background-color');
-        $row.css('background-color', color);
+    // Вспышка цвета — визуальный фидбек для Tailwind
+    function flashRow($row, colorClass) {
+        $row.addClass(colorClass);
         setTimeout(function () {
-            $row.css('background-color', original);
-        }, 700);
+            $row.removeClass(colorClass);
+        }, 800);
     }
     
-        // --- Сохранение цены AI ---
+    // --- Сохранение цены AI ---
     $('#save-ai-price').on('click', function () {
         const price  = parseInt($('#ai-price-input').val(), 10);
         const $status = $('#ai-price-status');
 
         if (isNaN(price) || price < 0) {
-            $status.removeClass('ok').addClass('err')
-                   .text('Введите целое неотрицательное число');
+            $status.removeClass('text-green-600').addClass('text-red-500').text('Ошибка ввода');
             return;
         }
 
-        postJSON('/admin/settings/ai_price', { price: price }, function (res) {
+        const originalText = $(this).text();
+        $(this).text('...').prop('disabled', true);
+
+        postJSON('/admin/settings/ai_price', { price: price }, (res) => {
             $('#ai-price-input').val(res.price);
-            $status.removeClass('err').addClass('ok')
-                   .text('✓ Сохранено');
-            setTimeout(function () { $status.text('').removeClass('ok'); }, 2000);
-        }, function () {
-            $status.removeClass('ok').addClass('err')
-                   .text('Ошибка сохранения');
+            $status.removeClass('text-red-500').addClass('text-green-600').text('✓ Сохранено');
+            Toast.fire({ icon: 'success', title: 'Цена обновлена' });
+            setTimeout(function () { $status.text(''); }, 2000);
+        }, () => {
+            $status.removeClass('text-green-600').addClass('text-red-500').text('Ошибка');
         });
+
+        setTimeout(() => {
+            $(this).text(originalText).prop('disabled', false);
+        }, 500);
     });
 });

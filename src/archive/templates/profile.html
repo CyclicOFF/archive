@@ -4,89 +4,77 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Личный кабинет</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif; background: #f0f2f5;
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;
+        body { 
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 50%, #ccfbf1 100%);
+            background-size: 200% 200%;
+            animation: gradientMove 15s ease infinite;
         }
-        .profile-card {
-            background: white; border-radius: 12px; padding: 30px;
-            box-shadow: 0 6px 18px rgba(0,0,0,0.08);
-            width: 100%; max-width: 480px;
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
         }
-        .profile-card h1 { margin: 0 0 8px; font-size: 22px; color: #222; }
-        .profile-card .subtitle { color: #888; font-size: 14px; margin-bottom: 24px; }
-        .info-row {
-            display: flex; justify-content: space-between;
-            padding: 12px 0; border-bottom: 1px solid #eee;
+        .glass-card {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
         }
-        .info-row:last-of-type { border-bottom: none; }
-        .info-row .label { color: #666; }
-        .info-row .value { font-weight: 600; color: #222; }
-        .balance {
-            margin-top: 20px; padding: 18px; border-radius: 10px;
-            background: linear-gradient(135deg,#007bff,#0056b3);
-            color: white; text-align: center;
-        }
-        .balance .amount { font-size: 28px; font-weight: bold; margin-top: 6px; }
-        .actions {
-            display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap;
-        }
-        .actions button, .actions a {
-            flex: 1 1 46%; text-align: center; text-decoration: none;
-            padding: 12px; border-radius: 8px; font-size: 15px;
-            cursor: pointer; border: none; transition: background .3s;
-        }
-        #send-money-btn { background: #28a745; color: white; }
-        #send-money-btn:hover { background: #218838; }
-        .ai-link { background: #6f42c1; color: white; }
-        .ai-link:hover { background: #59339d; }
-        .logout {
-            display: block; text-align: center; margin-top: 18px;
-            color: #999; font-size: 13px; text-decoration: none;
-        }
-        .logout:hover { color: #555; }
     </style>
 </head>
-<body>
+<body class="flex items-center justify-center min-h-screen p-4">
+    <div class="glass-card rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] w-full max-w-lg p-8 sm:p-10 relative overflow-hidden">
+        <div class="absolute -top-20 -right-20 w-48 h-48 bg-gradient-to-br from-purple-400 to-indigo-400 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
+        <div class="absolute -bottom-20 -left-20 w-48 h-48 bg-gradient-to-tr from-teal-300 to-emerald-300 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
 
-<div class="profile-card">
-    <h1>Личный кабинет</h1>
-    <div class="subtitle">{{ user.email }}</div>
+        <div class="text-center mb-8 relative z-10">
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">Личный кабинет</h1>
+            <div class="text-indigo-700 bg-indigo-50/80 border border-indigo-100 inline-block px-4 py-1.5 rounded-full text-sm font-medium">{{ user.email }}</div>
+        </div>
 
-    <div class="info-row">
-        <span class="label">Имя</span>
-        <span class="value">{{ user.username }}</span>
+        <div class="space-y-4 mb-8 relative z-10">
+            <div class="flex justify-between items-center py-3 border-b border-gray-200/50">
+                <span class="text-gray-600 font-medium">Имя</span>
+                <span class="text-gray-900 font-semibold">{{ user.username }}</span>
+            </div>
+            <div class="flex justify-between items-center py-3 border-b border-gray-200/50">
+                <span class="text-gray-600 font-medium">Фамилия</span>
+                <span class="text-gray-900 font-semibold">{{ user.surname or '—' }}</span>
+            </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-indigo-500 via-purple-500 to-fuchsia-500 rounded-2xl p-8 text-white text-center mb-8 shadow-xl relative z-10 overflow-hidden">
+            <div class="absolute inset-0 bg-white/10 opacity-0 hover:opacity-100 transition-opacity"></div>
+            <div class="text-indigo-100 font-medium mb-2 text-lg">Ваш баланс</div>
+            <div class="text-5xl font-bold tracking-tight">{{ user.balance }} <span class="text-3xl font-medium text-indigo-100">₽</span></div>
+        </div>
+
+        {% if user.is_admin %}
+        <a href="/admin" class="relative z-10 block w-full text-center bg-rose-50/80 text-rose-600 hover:bg-rose-100 font-semibold py-3.5 rounded-xl transition-colors mb-4 border border-rose-200 shadow-sm">
+            👑 Панель администратора
+        </a>
+        {% endif %}
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 relative z-10">
+            <button id="send-money-btn" type="button" class="bg-white/80 text-teal-700 hover:bg-teal-50 hover:border-teal-300 font-semibold py-3.5 rounded-xl transition-colors border border-gray-200 shadow-sm">
+                💸 Отдать деньги
+            </button>
+            <a href="/ai" class="flex items-center justify-center bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 font-semibold py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                ✨ Спросить нейросеть
+            </a>
+        </div>
+
+        <a href="/logout" class="relative z-10 block text-center text-gray-500 hover:text-gray-700 font-medium text-sm transition-colors">
+            Выйти из аккаунта
+        </a>
     </div>
-    <div class="info-row">
-        <span class="label">Фамилия</span>
-        <span class="value">{{ user.surname or '—' }}</span>
-    </div>
 
-    <div class="balance">
-        <div>Баланс</div>
-        <div class="amount">{{ user.balance }} ₽</div>
-    </div>
-    {% if user.is_admin %}
-    <a class="admin-link" href="/admin"
-       style="display:block;text-align:center;margin-bottom:14px;
-              padding:12px;border-radius:8px;background:#dc3545;
-              color:white;text-decoration:none;font-size:15px;">
-        Админ-панель
-    </a>
-    {% endif %}
-    <div class="actions">
-        <button id="send-money-btn" type="button">Отдать деньги</button>
-        <a class="ai-link" href="/ai">Спросить нейросеть</a>
-    </div>
-
-    <a class="logout" href="/logout">Выйти из аккаунта</a>
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.js"
-        integrity="sha512-+k1pnlgt4F1H8L7t3z95o3/KO+o78INEcXTbnoJQ/F2VqDVhWoaiVml/OEHv9HsVgxUaVW+IbiZPUJQfF/YxZw=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
