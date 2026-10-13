@@ -4,197 +4,134 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Админ-панель</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        * { box-sizing: border-box; }
-        body {
-            font-family: Arial, sans-serif; background: #f0f2f5;
-            margin: 0; padding: 24px;
-        }
-        .container { max-width: 1150px; margin: 0 auto; }
-
-        .topbar {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; flex-wrap: wrap; gap: 12px;
-        }
-        .topbar h1 { margin: 0; color: #222; font-size: 24px; }
-        .topbar .links a {
-            margin-left: 12px; text-decoration: none; font-size: 14px;
-        }
-        .topbar .links a.gray { color: #666; }
-        .topbar .links a.red  { color: #dc3545; }
-        .topbar .links a:hover { text-decoration: underline; }
-
-        /* Статистика */
-        .stats {
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 16px; margin-bottom: 22px;
-        }
-        .stat-card {
-            background: white; border-radius: 10px; padding: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-        }
-        .stat-card .label { color: #888; font-size: 13px; }
-        .stat-card .value {
-            font-size: 26px; font-weight: bold; color: #222; margin-top: 6px;
-        }
-        
-                /* Настройки */
-        .settings-card {
-            background: white; border-radius: 10px; padding: 18px 22px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-            margin-bottom: 22px;
-            display: flex; justify-content: space-between;
-            align-items: center; flex-wrap: wrap; gap: 14px;
-        }
-        .settings-label { font-size: 15px; color: #333; font-weight: 600; }
-        .settings-controls {
-            display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-        }
-        .settings-controls input {
-            width: 90px; padding: 8px 10px; border: 1px solid #ccc;
-            border-radius: 6px; font-size: 15px;
-        }
-        .settings-controls .unit { color: #666; font-size: 14px; }
-        .status { font-size: 13px; margin-left: 6px; }
-        .status.ok  { color: #28a745; }
-        .status.err { color: #dc3545; }
-
-        /* Таблица */
-        .table-wrap {
-            background: white; border-radius: 10px; overflow: hidden;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.06);
-        }
-        table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        thead { background: #f8f9fa; }
-        th, td { padding: 12px 14px; text-align: left; }
-        th { color: #555; font-weight: 600; border-bottom: 1px solid #eee; }
-        td { border-bottom: 1px solid #f1f1f1; color: #333; }
-        tbody tr:hover { background: #fafbfc; }
-
-        .badge {
-            display: inline-block; padding: 3px 8px; border-radius: 12px;
-            font-size: 12px; font-weight: 600;
-        }
-        .badge.admin { background: #e3f2fd; color: #1565c0; }
-        .badge.user  { background: #f1f1f1; color: #666; }
-
-        .balance-input {
-            width: 90px; padding: 6px 8px; border: 1px solid #ccc;
-            border-radius: 5px; font-size: 14px;
-        }
-
-        .btn {
-            padding: 6px 12px; border: none; border-radius: 5px;
-            font-size: 13px; cursor: pointer; transition: background .2s;
-            margin-right: 4px;
-        }
-        .btn.save    { background: #28a745; color: white; }
-        .btn.save:hover { background: #218838; }
-        .btn.toggle  { background: #ffc107; color: #333; }
-        .btn.toggle:hover { background: #e0a800; }
-        .btn.delete  { background: #dc3545; color: white; }
-        .btn.delete:hover { background: #b02a37; }
-        .btn:disabled { opacity: .5; cursor: not-allowed; }
-
-        .me-row { background: #fffbe6 !important; }
-        .me-tag { font-size: 11px; color: #999; margin-left: 6px; }
+        body { font-family: 'Inter', sans-serif; }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen">
+    
+    <nav class="bg-white shadow-sm mb-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16 items-center">
+                <div class="flex items-center">
+                    <span class="text-xl font-bold text-gray-800">⚙️ Админ-панель</span>
+                </div>
+                <div class="flex items-center gap-4">
+                    <a href="/profile" class="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">Мой ЛК</a>
+                    <a href="/ai" class="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">Нейросеть</a>
+                    <span class="w-px h-4 bg-gray-300"></span>
+                    <a href="/logout" class="text-sm font-medium text-red-600 hover:text-red-800 transition-colors">Выйти</a>
+                </div>
+            </div>
+        </div>
+    </nav>
 
-<div class="container">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+        <!-- Статистика -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col justify-between">
+                <div class="text-gray-500 text-sm font-medium mb-1">Всего пользователей</div>
+                <div class="text-3xl font-bold text-gray-900">{{ total_users }}</div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col justify-between">
+                <div class="text-gray-500 text-sm font-medium mb-1">Администраторов</div>
+                <div class="text-3xl font-bold text-blue-600">{{ total_admins }}</div>
+            </div>
+            <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100 flex flex-col justify-between">
+                <div class="text-gray-500 text-sm font-medium mb-1">Суммарный баланс</div>
+                <div class="text-3xl font-bold text-green-600">{{ total_balance }} ₽</div>
+            </div>
+        </div>
 
-    <div class="topbar">
-        <h1>Админ-панель</h1>
-        <div class="links">
-            <a href="/profile" class="gray">Мой ЛК</a>
-            <a href="/ai" class="gray">Нейросеть</a>
-            <a href="/logout" class="red">Выйти</a>
+        <!-- Настройки -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 mb-8 p-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="p-2 bg-amber-100 rounded-lg text-amber-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-900">Стоимость запроса AI</h3>
+                        <p class="text-sm text-gray-500">Цена одного запроса к нейросети</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="relative">
+                        <input type="number" id="ai-price-input" min="0" step="1" value="{{ ai_price }}"
+                            class="w-24 pl-3 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500 outline-none text-right font-medium">
+                        <span class="absolute right-3 top-2 text-gray-500 font-medium">₽</span>
+                    </div>
+                    <button id="save-ai-price" class="bg-amber-500 hover:bg-amber-600 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-sm">
+                        Сохранить
+                    </button>
+                    <span id="ai-price-status" class="text-sm font-medium ml-2 min-w-[80px]"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Таблица пользователей -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-5 border-b border-gray-100 bg-gray-50">
+                <h3 class="text-lg font-semibold text-gray-900">Управление пользователями</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-white border-b border-gray-200">
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Пользователь</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Роль</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Баланс (₽)</th>
+                            <th class="px-6 py-4 text-xs font-semibold text-gray-500 uppercase tracking-wider text-right">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        {% for u in users %}
+                        <tr data-user-id="{{ u.id }}" class="hover:bg-gray-50 transition-colors {% if u.id == session.user_id %}bg-blue-50 hover:bg-blue-50/80{% endif %}">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">#{{ u.id }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="font-medium text-gray-900 flex items-center gap-2">
+                                    {{ u.username }} {{ u.surname or '' }}
+                                    {% if u.id == session.user_id %}
+                                    <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">Это вы</span>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ u.email }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex px-2.5 py-1 text-xs font-medium rounded-full {% if u.is_admin %}bg-purple-100 text-purple-700{% else %}bg-gray-100 text-gray-700{% endif %}" data-role-badge>
+                                    {% if u.is_admin %}Администратор{% else %}Пользователь{% endif %}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <input type="number" class="w-20 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" value="{{ u.balance }}" data-balance-input>
+                                </div>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
+                                <button class="text-green-600 hover:text-green-900 bg-green-50 hover:bg-green-100 px-3 py-1.5 rounded-lg transition-colors" data-action="save-balance">
+                                    Сохранить
+                                </button>
+                                <button class="text-amber-600 hover:text-amber-900 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" data-action="toggle-admin" {% if u.id == session.user_id %}disabled{% endif %}>
+                                    {% if u.is_admin %}Разжаловать{% else %}В админы{% endif %}
+                                </button>
+                                <button class="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed" data-action="delete" {% if u.id == session.user_id %}disabled{% endif %}>
+                                    Удалить
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
 
-    <div class="stats">
-        <div class="stat-card">
-            <div class="label">Всего пользователей</div>
-            <div class="value">{{ total_users }}</div>
-        </div>
-        <div class="stat-card">
-            <div class="label">Администраторов</div>
-            <div class="value">{{ total_admins }}</div>
-        </div>
-        <div class="stat-card">
-            <div class="label">Суммарный баланс</div>
-            <div class="value">{{ total_balance }} ₽</div>
-        </div>
-    </div>
-        <div class="settings-card">
-        <div class="settings-label">
-            💰 Стоимость одного запроса к нейросети
-        </div>
-        <div class="settings-controls">
-            <input type="number" id="ai-price-input" min="0" step="1"
-                   value="{{ ai_price }}">
-            <span class="unit">₽ / запрос</span>
-            <button id="save-ai-price" class="btn save">Сохранить</button>
-            <span id="ai-price-status" class="status"></span>
-        </div>
-    </div>
-    <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Имя</th>
-                    <th>Фамилия</th>
-                    <th>Email</th>
-                    <th>Баланс, ₽</th>
-                    <th>Роль</th>
-                    <th>Действия</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for u in users %}
-                <tr data-user-id="{{ u.id }}"
-                    class="{% if u.id == session.user_id %}me-row{% endif %}">
-                    <td>{{ u.id }}</td>
-                    <td>
-                        {{ u.username }}
-                        {% if u.id == session.user_id %}<span class="me-tag">(вы)</span>{% endif %}
-                    </td>
-                    <td>{{ u.surname or '—' }}</td>
-                    <td>{{ u.email }}</td>
-                    <td>
-                        <input type="number" class="balance-input"
-                               value="{{ u.balance }}" data-balance-input>
-                    </td>
-                    <td>
-                        <span class="badge {% if u.is_admin %}admin{% else %}user{% endif %}"
-                              data-role-badge>
-                            {% if u.is_admin %}Админ{% else %}Пользователь{% endif %}
-                        </span>
-                    </td>
-                    <td>
-                        <button class="btn save" data-action="save-balance">Сохранить</button>
-                        <button class="btn toggle" data-action="toggle-admin"
-                                {% if u.id == session.user_id %}disabled title="Нельзя снять права с себя"{% endif %}>
-                            {% if u.is_admin %}Разжаловать{% else %}Назначить админом{% endif %}
-                        </button>
-                        <button class="btn delete" data-action="delete"
-                                {% if u.id == session.user_id %}disabled title="Нельзя удалить себя"{% endif %}>
-                            Удалить
-                        </button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-</div>
-
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.js"
-        integrity="sha512-+k1pnlgt4F1H8L7t3z95o3/KO+o78INEcXTbnoJQ/F2VqDVhWoaiVml/OEHv9HsVgxUaVW+IbiZPUJQfF/YxZw=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="{{ url_for('static', filename='admin.js') }}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <script src="{{ url_for('static', filename='admin.js') }}"></script>
 </body>
 </html>
