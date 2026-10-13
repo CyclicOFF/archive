@@ -4,13 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Личный кабинет</title>
+    <script>
+        if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="{{ url_for('static', filename='theme.js') }}"></script>
     <style>
         body { 
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 50%, #ccfbf1 100%);
+            background-size: 200% 200%;
+            animation: gradientMove 15s ease infinite;
+        }
+        .dark body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #111827 100%);
             background-size: 200% 200%;
             animation: gradientMove 15s ease infinite;
         }
@@ -25,26 +43,45 @@
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.5);
         }
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
     </style>
 </head>
-<body class="flex items-center justify-center min-h-screen p-4">
+<body class="flex items-center justify-center min-h-screen p-4 text-gray-800 dark:text-gray-100 transition-colors duration-300">
     <div class="glass-card rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.08)] w-full max-w-lg p-8 sm:p-10 relative overflow-hidden">
+        
+        <!-- Кнопка переключения темы -->
+        <div class="absolute top-6 right-6 z-20">
+            <button onclick="toggleTheme()" type="button" title="Сменить тему" class="p-2.5 rounded-full bg-white/60 dark:bg-slate-800/80 backdrop-blur-md border border-white/50 dark:border-white/10 text-gray-700 dark:text-amber-400 hover:scale-105 transition-all shadow-sm">
+                <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+                <svg class="w-4 h-4 block dark:hidden text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                </svg>
+            </button>
+        </div>
+
         <div class="absolute -top-20 -right-20 w-48 h-48 bg-gradient-to-br from-purple-400 to-indigo-400 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
         <div class="absolute -bottom-20 -left-20 w-48 h-48 bg-gradient-to-tr from-teal-300 to-emerald-300 rounded-full blur-3xl opacity-30 pointer-events-none"></div>
 
         <div class="text-center mb-8 relative z-10">
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">Личный кабинет</h1>
-            <div class="text-indigo-700 bg-indigo-50/80 border border-indigo-100 inline-block px-4 py-1.5 rounded-full text-sm font-medium">{{ user.email }}</div>
+            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Личный кабинет</h1>
+            <div class="text-indigo-700 dark:text-indigo-300 bg-indigo-50/80 dark:bg-indigo-950/60 border border-indigo-100 dark:border-indigo-800 inline-block px-4 py-1.5 rounded-full text-sm font-medium">{{ user.email }}</div>
         </div>
 
         <div class="space-y-4 mb-8 relative z-10">
-            <div class="flex justify-between items-center py-3 border-b border-gray-200/50">
-                <span class="text-gray-600 font-medium">Имя</span>
-                <span class="text-gray-900 font-semibold">{{ user.username }}</span>
+            <div class="flex justify-between items-center py-3 border-b border-gray-200/50 dark:border-slate-700/50">
+                <span class="text-gray-600 dark:text-gray-400 font-medium">Имя</span>
+                <span class="text-gray-900 dark:text-white font-semibold">{{ user.username }}</span>
             </div>
-            <div class="flex justify-between items-center py-3 border-b border-gray-200/50">
-                <span class="text-gray-600 font-medium">Фамилия</span>
-                <span class="text-gray-900 font-semibold">{{ user.surname or '—' }}</span>
+            <div class="flex justify-between items-center py-3 border-b border-gray-200/50 dark:border-slate-700/50">
+                <span class="text-gray-600 dark:text-gray-400 font-medium">Фамилия</span>
+                <span class="text-gray-900 dark:text-white font-semibold">{{ user.surname or '—' }}</span>
             </div>
         </div>
 
@@ -55,13 +92,13 @@
         </div>
 
         {% if user.is_admin %}
-        <a href="/admin" class="relative z-10 block w-full text-center bg-rose-50/80 text-rose-600 hover:bg-rose-100 font-semibold py-3.5 rounded-xl transition-colors mb-4 border border-rose-200 shadow-sm">
+        <a href="/admin" class="relative z-10 block w-full text-center bg-rose-50/80 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/60 font-semibold py-3.5 rounded-xl transition-colors mb-4 border border-rose-200 dark:border-rose-900/60 shadow-sm">
             👑 Панель администратора
         </a>
         {% endif %}
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8 relative z-10">
-            <button id="send-money-btn" type="button" class="bg-white/80 text-teal-700 hover:bg-teal-50 hover:border-teal-300 font-semibold py-3.5 rounded-xl transition-colors border border-gray-200 shadow-sm">
+            <button id="send-money-btn" type="button" class="bg-white/80 dark:bg-slate-800/80 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-slate-700/60 font-semibold py-3.5 rounded-xl transition-colors border border-gray-200 dark:border-slate-700 shadow-sm">
                 💸 Отдать деньги
             </button>
             <a href="/ai" class="flex items-center justify-center bg-gradient-to-r from-indigo-600 to-purple-600 text-white hover:from-indigo-700 hover:to-purple-700 font-semibold py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
@@ -69,7 +106,7 @@
             </a>
         </div>
 
-        <a href="/logout" class="relative z-10 block text-center text-gray-500 hover:text-gray-700 font-medium text-sm transition-colors">
+        <a href="/logout" class="relative z-10 block text-center text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 font-medium text-sm transition-colors">
             Выйти из аккаунта
         </a>
     </div>

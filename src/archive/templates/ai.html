@@ -4,14 +4,33 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Нейросеть - Диалог</title>
+    <script>
+        // Init theme immediately to avoid flash
+        if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="{{ url_for('static', filename='theme.js') }}"></script>
     <style>
         body { 
             font-family: 'Inter', sans-serif;
             background: linear-gradient(135deg, #e0e7ff 0%, #f3e8ff 50%, #ccfbf1 100%);
+            background-size: 200% 200%;
+            animation: gradientMove 15s ease infinite;
+        }
+        .dark body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #111827 100%);
             background-size: 200% 200%;
             animation: gradientMove 15s ease infinite;
         }
@@ -26,34 +45,68 @@
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.5);
         }
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
         /* Markdown styles */
         .markdown-body p { margin-bottom: 0.5em; }
         .markdown-body p:last-child { margin-bottom: 0; }
         .markdown-body ul { list-style-type: disc; margin-left: 1.5em; margin-bottom: 0.5em; }
         .markdown-body ol { list-style-type: decimal; margin-left: 1.5em; margin-bottom: 0.5em; }
-        .markdown-body code { background-color: rgba(0,0,0,0.05); padding: 0.2em 0.4em; border-radius: 0.25rem; font-family: monospace; }
+        .markdown-body code { background-color: rgba(0,0,0,0.06); padding: 0.2em 0.4em; border-radius: 0.25rem; font-family: monospace; }
+        .dark .markdown-body code { background-color: rgba(255,255,255,0.1); color: #e2e8f0; }
         .markdown-body pre { background-color: #1e293b; color: #f8fafc; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin-bottom: 0.5em; }
+        .dark .markdown-body pre { background-color: #0f172a; border: 1px solid rgba(255,255,255,0.1); }
         .markdown-body pre code { background-color: transparent; padding: 0; color: inherit; }
         
         /* Custom Scrollbar for chat */
         #chat-container::-webkit-scrollbar { width: 6px; }
         #chat-container::-webkit-scrollbar-track { background: transparent; }
         #chat-container::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.5); border-radius: 20px; }
+        .dark #chat-container::-webkit-scrollbar-thumb { background-color: rgba(100, 116, 139, 0.5); }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen p-4 h-screen">
+<body class="flex flex-col items-center justify-center min-h-screen p-4 h-screen text-gray-800 dark:text-gray-100 transition-colors duration-300">
     <div class="w-full max-w-4xl h-full flex flex-col py-4 relative z-10">
         
         <!-- Header -->
         <div class="flex justify-between items-center mb-4 px-2">
-            <a href="/profile" class="inline-flex items-center text-sm font-medium text-indigo-700 hover:text-indigo-900 transition-colors bg-white/50 backdrop-blur-md px-4 py-2 rounded-full shadow-sm border border-white/50">
-                <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                В личный кабинет
-            </a>
-            <div class="bg-white/80 border border-purple-100 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700 shadow-sm flex items-center gap-3">
-                <span>Баланс: <b class="text-gray-900"><span id="balance-value">{{ balance }}</span> ₽</b></span>
-                <span class="w-px h-4 bg-gray-300"></span>
-                <span>Цена: <b class="text-purple-600">{{ price }} ₽</b></span>
+            <div class="flex items-center gap-2">
+                <a href="/profile" class="inline-flex items-center text-sm font-medium text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white transition-colors bg-white/50 dark:bg-slate-800/60 backdrop-blur-md px-4 py-2 rounded-full shadow-sm border border-white/50 dark:border-white/10">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    В личный кабинет
+                </a>
+                
+                <!-- Кнопка темы -->
+                <button onclick="toggleTheme()" type="button" title="Сменить тему" class="p-2 rounded-full bg-white/50 dark:bg-slate-800/60 backdrop-blur-md border border-white/50 dark:border-white/10 text-gray-700 dark:text-amber-400 hover:scale-105 transition-all shadow-sm">
+                    <!-- Иконка солнца (в темной теме) -->
+                    <svg class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 9h-1m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    <!-- Иконка луны (в светлой теме) -->
+                    <svg class="w-4 h-4 block dark:hidden text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex items-center gap-2">
+                <!-- Кнопка очистки чата -->
+                <button id="clear-chat-btn" type="button" title="Очистить историю чата" class="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 bg-white/50 dark:bg-slate-800/60 backdrop-blur-md border border-rose-200 dark:border-rose-900/50 px-3 py-2 rounded-xl transition-all shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                    <span class="hidden sm:inline">Очистить</span>
+                </button>
+
+                <div class="bg-white/80 dark:bg-slate-800/80 border border-purple-100 dark:border-slate-700 px-4 py-2 rounded-xl text-sm font-semibold text-gray-700 dark:text-gray-200 shadow-sm flex items-center gap-3">
+                    <span>Баланс: <b class="text-gray-900 dark:text-white"><span id="balance-value">{{ balance }}</span> ₽</b></span>
+                    <span class="w-px h-4 bg-gray-300 dark:bg-slate-600"></span>
+                    <span>Цена: <b class="text-purple-600 dark:text-purple-400">{{ price }} ₽</b></span>
+                </div>
             </div>
         </div>
 
@@ -65,31 +118,31 @@
                 <!-- Сообщения будут появляться здесь -->
                 
                 <!-- Заглушка, если пусто -->
-                <div id="ai-empty-state" class="h-full flex flex-col items-center justify-center text-gray-400 opacity-70">
-                    <div class="w-16 h-16 bg-white/50 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-white">
+                <div id="ai-empty-state" class="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 opacity-80">
+                    <div class="w-16 h-16 bg-white/50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-white dark:border-slate-700">
                         <span class="text-3xl">✨</span>
                     </div>
-                    <p class="font-medium">История чиста. Задайте первый вопрос!</p>
+                    <p class="font-medium text-sm sm:text-base">История чиста. Задайте первый вопрос!</p>
                 </div>
             </div>
 
             <!-- Typing indicator (hidden by default) -->
             <div id="ai-loader" class="hidden px-6 pb-2">
-                <div class="flex items-center gap-2 text-gray-500 bg-white/60 inline-flex px-4 py-2 rounded-full border border-gray-100 shadow-sm">
+                <div class="flex items-center gap-2 text-gray-500 dark:text-gray-300 bg-white/60 dark:bg-slate-800/70 inline-flex px-4 py-2 rounded-full border border-gray-100 dark:border-slate-700 shadow-sm">
                     <div class="flex space-x-1">
-                        <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0s"></div>
-                        <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                        <div class="w-2 h-2 bg-indigo-400 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+                        <div class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0s"></div>
+                        <div class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
+                        <div class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
                     </div>
                     <span class="text-xs font-medium ml-1">GigaChat печатает...</span>
                 </div>
             </div>
 
             <!-- Input area -->
-            <div class="p-4 bg-white/60 border-t border-white/50 backdrop-blur-md">
+            <div class="p-4 bg-white/60 dark:bg-slate-800/60 border-t border-white/50 dark:border-slate-700/50 backdrop-blur-md">
                 <form id="ai-form" class="relative flex items-end gap-2">
                     <textarea id="ai-prompt" placeholder="Спросите что-нибудь..." required rows="1"
-                        class="w-full max-h-32 min-h-[50px] px-4 py-3 bg-white border border-gray-200 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none text-gray-800 shadow-sm leading-relaxed"></textarea>
+                        class="w-full max-h-32 min-h-[50px] px-4 py-3 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all resize-none text-gray-800 dark:text-gray-100 shadow-sm leading-relaxed placeholder-gray-400 dark:placeholder-gray-500"></textarea>
                     
                     <button type="submit" id="ask-btn"
                         class="flex-shrink-0 w-[50px] h-[50px] flex items-center justify-center bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white rounded-2xl transition-all shadow-md hover:shadow-lg focus:ring-4 focus:ring-indigo-300 disabled:opacity-50 disabled:cursor-not-allowed">
@@ -104,7 +157,7 @@
     <!-- Template for user message -->
     <template id="msg-user">
         <div class="flex justify-end w-full">
-            <div class="max-w-[85%] sm:max-w-[75%] bg-indigo-600 text-white px-5 py-3 rounded-2xl rounded-tr-sm shadow-md">
+            <div class="max-w-[85%] sm:max-w-[75%] bg-indigo-600 dark:bg-indigo-700 text-white px-5 py-3 rounded-2xl rounded-tr-sm shadow-md">
                 <div class="content whitespace-pre-wrap text-sm sm:text-base leading-relaxed"></div>
             </div>
         </div>
@@ -114,10 +167,10 @@
     <template id="msg-ai">
         <div class="flex justify-start w-full">
             <div class="flex items-end gap-2 max-w-[85%] sm:max-w-[80%]">
-                <div class="w-8 h-8 flex-shrink-0 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 flex items-center justify-center border border-indigo-200 mb-1">
+                <div class="w-8 h-8 flex-shrink-0 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900 dark:to-purple-900 flex items-center justify-center border border-indigo-200 dark:border-indigo-700 mb-1">
                     <span class="text-sm">🤖</span>
                 </div>
-                <div class="bg-white text-gray-800 px-5 py-3 rounded-2xl rounded-tl-sm shadow-sm border border-gray-100">
+                <div class="bg-white dark:bg-slate-800 text-gray-800 dark:text-gray-100 px-5 py-3 rounded-2xl rounded-tl-sm shadow-sm border border-gray-100 dark:border-slate-700">
                     <div class="content markdown-body text-sm sm:text-base leading-relaxed"></div>
                 </div>
             </div>

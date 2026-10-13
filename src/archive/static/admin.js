@@ -1,5 +1,10 @@
 $(document).ready(function () {
 
+    function getSwalOpts(extra) {
+        const themeConfig = window.getSwalThemeConfig ? window.getSwalThemeConfig() : {};
+        return Object.assign({}, themeConfig, extra);
+    }
+
     const Toast = Swal.mixin({
         toast: true,
         position: 'top-end',
@@ -7,10 +12,15 @@ $(document).ready(function () {
         timer: 3000,
         timerProgressBar: true,
         didOpen: (toast) => {
-            toast.addEventListener('mouseenter', Swal.stopTimer)
-            toast.addEventListener('mouseleave', Swal.resumeTimer)
+            toast.addEventListener('mouseenter', Swal.stopTimer);
+            toast.addEventListener('mouseleave', Swal.resumeTimer);
         }
     });
+
+    function showToast(icon, title) {
+        const themeConfig = window.getSwalThemeConfig ? window.getSwalThemeConfig() : {};
+        Toast.fire(Object.assign({}, themeConfig, { icon: icon, title: title }));
+    }
 
     function postJSON(url, data, onSuccess, onError) {
         $.ajax({
@@ -22,7 +32,7 @@ $(document).ready(function () {
         .done(function (res) { onSuccess && onSuccess(res); })
         .fail(function (xhr) {
             const msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка запроса';
-            Toast.fire({ icon: 'error', title: msg });
+            showToast('error', msg);
             onError && onError(xhr);
         });
     }
@@ -34,14 +44,14 @@ $(document).ready(function () {
         const value = parseInt($row.find('[data-balance-input]').val(), 10);
 
         if (isNaN(value) || value < 0) {
-            Toast.fire({ icon: 'warning', title: 'Баланс должен быть целым неотрицательным числом' });
+            showToast('warning', 'Баланс должен быть целым неотрицательным числом');
             return;
         }
 
         postJSON(`/admin/user/${id}/balance`, { balance: value }, function (res) {
             $row.find('[data-balance-input]').val(res.balance);
-            Toast.fire({ icon: 'success', title: 'Баланс обновлен' });
-            flashRow($row, 'bg-green-100');
+            showToast('success', 'Баланс обновлен');
+            flashRow($row, 'bg-green-100 dark:bg-green-950/40');
         });
     });
 
@@ -57,15 +67,23 @@ $(document).ready(function () {
             const $badge  = $row.find('[data-role-badge]');
             
             if (isAdmin) {
-                $badge.text('Администратор').removeClass('bg-gray-100 text-gray-700').addClass('bg-purple-100 text-purple-700');
-                $btn.text('Разжаловать');
+                $badge.text('Администратор')
+                      .removeClass('bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-300')
+                      .addClass('bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300');
+                $btn.text('Разжаловать')
+                    .removeClass('border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40')
+                    .addClass('border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40');
             } else {
-                $badge.text('Пользователь').removeClass('bg-purple-100 text-purple-700').addClass('bg-gray-100 text-gray-700');
-                $btn.text('В админы');
+                $badge.text('Пользователь')
+                      .removeClass('bg-purple-100 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300')
+                      .addClass('bg-gray-100 dark:bg-slate-700 text-gray-800 dark:text-gray-300');
+                $btn.text('В админы')
+                    .removeClass('border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40')
+                    .addClass('border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/40');
             }
             
-            Toast.fire({ icon: 'success', title: 'Роль изменена' });
-            flashRow($row, 'bg-amber-50');
+            showToast('success', 'Роль изменена');
+            flashRow($row, 'bg-amber-100/50 dark:bg-amber-950/30');
         })
         .always(function () {
             $btn.prop('disabled', false);
@@ -78,26 +96,26 @@ $(document).ready(function () {
         const id   = $row.data('user-id');
         const name = $row.find('td').eq(1).text().trim();
 
-        Swal.fire({
+        Swal.fire(getSwalOpts({
             title: 'Вы уверены?',
             text: `Удалить пользователя ${name} (ID: ${id})? Это действие необратимо.`,
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#d33',
-            cancelButtonColor: '#3085d6',
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
             confirmButtonText: 'Да, удалить',
             cancelButtonText: 'Отмена'
-        }).then((result) => {
+        })).then((result) => {
             if (result.isConfirmed) {
                 postJSON(`/admin/user/${id}/delete`, {}, function () {
                     $row.fadeOut(300, function () { $(this).remove(); });
-                    Toast.fire({ icon: 'success', title: 'Пользователь удален' });
+                    showToast('success', 'Пользователь удален');
                 });
             }
         });
     });
 
-    // Вспышка цвета — визуальный фидбек для Tailwind
+    // Вспышка цвета — визуальный фидбек
     function flashRow($row, colorClass) {
         $row.addClass(colorClass);
         setTimeout(function () {
@@ -120,11 +138,11 @@ $(document).ready(function () {
 
         postJSON('/admin/settings/ai_price', { price: price }, (res) => {
             $('#ai-price-input').val(res.price);
-            $status.removeClass('text-red-500').addClass('text-green-600').text('✓ Сохранено');
-            Toast.fire({ icon: 'success', title: 'Цена обновлена' });
+            $status.removeClass('text-red-500').addClass('text-green-600 dark:text-green-400').text('✓ Сохранено');
+            showToast('success', 'Цена обновлена');
             setTimeout(function () { $status.text(''); }, 2000);
         }, () => {
-            $status.removeClass('text-green-600').addClass('text-red-500').text('Ошибка');
+            $status.removeClass('text-green-600').addClass('text-red-500 dark:text-red-400').text('Ошибка');
         });
 
         setTimeout(() => {

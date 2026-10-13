@@ -7,6 +7,9 @@ import os
 from gigachat import GigaChatSyncClient
 from gigachat.models import ChatCompletionRequest, ChatMessage
 
+from dotenv import load_dotenv
+import sqlite3
+
 # Загружаем переменные окружения из .env файла
 load_dotenv()
 
@@ -15,6 +18,7 @@ GIGACHAT_CREDENTIALS = os.getenv("GIGACHAT_KEY")
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback-secret-key")
 
+DB_TYPE = os.getenv("DB_TYPE", "mysql").lower()
 DB_CONFIG = {
     "host": os.getenv("DB_HOST"),
     "port": int(os.getenv("DB_PORT", 3306)),
@@ -22,8 +26,72 @@ DB_CONFIG = {
     "user": os.getenv("DB_USER"),
     "password": os.getenv("DB_PASSWORD"),
 }
+SQLITE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "database.db")
 
 DEFAULT_AI_PRICE = 3
+
+
+class SQLiteCursorWrapper:
+    """Обертка над курсором SQLite для совместимости с синтаксисом mysql.connector (%s и dictionary=True)."""
+    def __init__(self, cursor, dictionary=False):
+        self._cur = cursor
+        self._dict = dictionary
+
+    def execute(self, query, params=None):
+        query = query.replace("%s", "?")
+        if params is None:
+            return self._cur.execute(query)
+        return self._cur.execute(query, params)
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        if row is None:
+            return None
+        if self._dict and hasattr(row, "keys"):
+            return dict(row)
+        return row
+
+    def fetchall(self):
+        rows = self._cur.fetchall()
+        if self._dict and rows and hasattr(rows[0], "keys"):
+            return [dict(r) for r in rows]
+        return rows
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
+
+    def close(self):
+        self._cur.close()
+
+
+class SQLiteConnectionWrapper:
+    """Обертка над соединением SQLite для единого интерфейса с MySQL."""
+    def __init__(self, connection):
+        self._conn = connection
+
+    def cursor(self, dictionary=False):
+        if dictionary:
+            self._conn.row_factory = sqlite3.Row
+        else:
+            self._conn.row_factory = None
+        return SQLiteCursorWrapper(self._conn.cursor(), dictionary=dictionary)
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+
+def get_db():
+    if DB_TYPE == "sqlite":
+        conn = sqlite3.connect(SQLITE_PATH)
+        return SQLiteConnectionWrapper(conn)
+    return mysql.connector.connect(**DB_CONFIG)
 
 
 def get_ai_price():
@@ -42,17 +110,20 @@ def get_ai_price():
 def set_ai_price(new_price):
     cnx = get_db()
     cur = cnx.cursor()
-    cur.execute(
-        "INSERT INTO settings (`key`, `value`) VALUES ('ai_price', %s) "
-        "ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
-        (str(new_price),)
-    )
+    if DB_TYPE == "sqlite":
+        cur.execute(
+            "INSERT INTO settings (`key`, `value`) VALUES ('ai_price', %s) "
+            "ON CONFLICT(`key`) DO UPDATE SET `value` = excluded.value",
+            (str(new_price),)
+        )
+    else:
+        cur.execute(
+            "INSERT INTO settings (`key`, `value`) VALUES ('ai_price', %s) "
+            "ON DUPLICATE KEY UPDATE `value` = VALUES(`value`)",
+            (str(new_price),)
+        )
     cnx.commit()
     cur.close(); cnx.close()
-
-
-def get_db():
-    return mysql.connector.connect(**DB_CONFIG)
 
 
 # ---------- Декораторы ----------
@@ -232,23 +303,20 @@ def ai_request():
         }), 402
 
     # === ЗАПРОС К GIGACHAT ===
-    # Получаем историю сообщений для контекста (последние 10)
+    # Получаем последние 10 сообщений для контекста
     cur.execute(
-        "SELECT role, content FROM ai_messages WHERE user_id = %s ORDER BY id ASC LIMIT 10",
+        "SELECT role, content FROM ai_messages WHERE user_id = %s ORDER BY id DESC LIMIT 10",
         (session["user_id"],)
     )
     history = cur.fetchall()
+    history.reverse()  # возвращаем в хронологический порядок для модели
     
     messages_payload = []
     for msg in history:
-        role = MessagesRole.USER if msg["role"] == "user" else MessagesRole.ASSISTANT
-        messages_payload.append(Messages(role=role, content=msg["content"]))
-        
-    messages_payload.append(Messages(role=MessagesRole.USER, content=prompt))
+        messages_payload.append(ChatMessage(role=msg["role"], content=msg["content"]))
+    messages_payload.append(ChatMessage(role="user", content=prompt))
 
     try:
-        from gigachat.models import ChatCompletionRequest, ChatMessage
-
         with GigaChatSyncClient(
             credentials=GIGACHAT_CREDENTIALS,
             base_url="https://api.giga.chat/v1",
@@ -258,9 +326,7 @@ def ai_request():
         ) as giga:
             ai_chat = ChatCompletionRequest(
                 model="GigaChat-2",
-                messages=[
-                    ChatMessage(role="user", content=prompt)
-                ]
+                messages=messages_payload
             )
             response = giga.chat.create(ai_chat)
             answer = response.messages[0].content[0].text
@@ -315,6 +381,17 @@ def get_ai_history():
     cur.close(); cnx.close()
     
     return jsonify({"status": "ok", "history": history})
+
+
+@app.route("/api/ai_clear", methods=["POST"])
+@login_required
+def clear_ai_history():
+    cnx = get_db()
+    cur = cnx.cursor()
+    cur.execute("DELETE FROM ai_messages WHERE user_id = %s", (session["user_id"],))
+    cnx.commit()
+    cur.close(); cnx.close()
+    return jsonify({"status": "ok", "message": "История чата очищена"})
 
 
 # ==========================================================

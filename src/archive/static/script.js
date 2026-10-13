@@ -1,5 +1,10 @@
 $(document).ready(function () {
 
+    function getSwalOpts(extra) {
+        const themeConfig = window.getSwalThemeConfig ? window.getSwalThemeConfig() : {};
+        return Object.assign({}, themeConfig, extra);
+    }
+
     // Helper for Toast notifications
     const Toast = Swal.mixin({
         toast: true,
@@ -12,6 +17,11 @@ $(document).ready(function () {
             toast.addEventListener('mouseleave', Swal.resumeTimer)
         }
     });
+
+    function showToast(icon, title) {
+        const themeConfig = window.getSwalThemeConfig ? window.getSwalThemeConfig() : {};
+        Toast.fire(Object.assign({}, themeConfig, { icon: icon, title: title }));
+    }
 
     // ---------- РЕГИСТРАЦИЯ ----------
     $('#register-form').on('submit', function (e) {
@@ -128,6 +138,39 @@ $(document).ready(function () {
             }
         });
     }
+
+    // Очистка истории чата
+    $('#clear-chat-btn').on('click', function () {
+        Swal.fire(getSwalOpts({
+            title: 'Очистить историю?',
+            text: 'Все сообщения будут удалены без возможности восстановления.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#e11d48',
+            cancelButtonColor: '#64748b',
+            confirmButtonText: 'Да, очистить',
+            cancelButtonText: 'Отмена'
+        })).then((result) => {
+            if (result.isConfirmed) {
+                $.post('/api/ai_clear')
+                .done(function () {
+                    $chatContainer.empty();
+                    $chatContainer.append(`
+                        <div id="ai-empty-state" class="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-500 opacity-80">
+                            <div class="w-16 h-16 bg-white/50 dark:bg-slate-800/50 rounded-2xl flex items-center justify-center mb-4 shadow-sm border border-white dark:border-slate-700">
+                                <span class="text-3xl">✨</span>
+                            </div>
+                            <p class="font-medium text-sm sm:text-base">История чиста. Задайте первый вопрос!</p>
+                        </div>
+                    `);
+                    showToast('success', 'История очищена');
+                })
+                .fail(function () {
+                    showToast('error', 'Ошибка при очистке истории');
+                });
+            }
+        });
+    });
 
     $aiForm.on('submit', function (e) {
         e.preventDefault();
