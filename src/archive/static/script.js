@@ -86,23 +86,70 @@ $(document).ready(function () {
     });
 
     // ---------- ЗАПРОС К НЕЙРОСЕТИ ----------
-    $('#ai-form').on('submit', function (e) {
+    const $chatContainer = $('#chat-container');
+    const $aiForm = $('#ai-form');
+    
+    // Auto-resize textarea
+    $('#ai-prompt').on('input', function() {
+        this.style.height = '50px';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+    
+    // Submit on Enter (without Shift)
+    $('#ai-prompt').on('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            $('#ai-form').submit();
+        }
+    });
+
+    function appendMessage(role, content) {
+        $('#ai-empty-state').addClass('hidden');
+        const templateId = role === 'user' ? '#msg-user' : '#msg-ai';
+        const $msg = $($(templateId).html());
+        
+        if (role === 'user') {
+            $msg.find('.content').text(content);
+        } else {
+            $msg.find('.content').html(marked.parse(content || ''));
+        }
+        
+        $chatContainer.append($msg);
+        $chatContainer.scrollTop($chatContainer[0].scrollHeight);
+    }
+
+    // Load history
+    if ($chatContainer.length > 0) {
+        $.get('/api/ai_history').done(function(res) {
+            if (res.history && res.history.length > 0) {
+                res.history.forEach(msg => {
+                    appendMessage(msg.role, msg.content);
+                });
+            }
+        });
+    }
+
+    $aiForm.on('submit', function (e) {
         e.preventDefault();
 
-        const prompt = $('#ai-prompt').val().trim();
+        const $promptInput = $('#ai-prompt');
+        const prompt = $promptInput.val().trim();
         if (!prompt) return;
 
         const $btn = $('#ask-btn');
-        const $answerContainer = $('#ai-answer-container');
-        const $answer = $('#ai-answer');
-        const $emptyState = $('#ai-empty-state');
         const $loader = $('#ai-loader');
 
+        // Show user message immediately
+        appendMessage('user', prompt);
+        
+        // Reset input
+        $promptInput.val('');
+        $promptInput.css('height', '50px');
+        
         // UI state: loading
         $btn.prop('disabled', true);
-        $emptyState.addClass('hidden');
-        $answerContainer.addClass('hidden');
         $loader.removeClass('hidden');
+        $chatContainer.scrollTop($chatContainer[0].scrollHeight);
 
         $.ajax({
             url: '/ai_request',
@@ -111,29 +158,15 @@ $(document).ready(function () {
             data: JSON.stringify({ prompt: prompt })
         })
         .done(function (res) {
-            // Render Markdown
-            if (typeof marked !== 'undefined') {
-                $answer.html(marked.parse(res.answer || ''));
-            } else {
-                $answer.text(res.answer || '');
-            }
-            
-            $answer.removeClass('bg-red-50 border-red-200 text-red-800').addClass('bg-gray-50 border-gray-100 text-gray-800');
-            $answerContainer.removeClass('hidden');
-
+            appendMessage('assistant', res.answer);
             if (typeof res.balance !== 'undefined') {
                 $('#balance-value').text(res.balance);
             }
         })
         .fail(function (xhr) {
             const msg = (xhr.responseJSON && xhr.responseJSON.message) || 'Ошибка запроса';
+            appendMessage('assistant', '❌ **Ошибка:** ' + msg);
             
-            $answer.text(msg);
-            $answer.removeClass('bg-gray-50 border-gray-100 text-gray-800').addClass('bg-red-50 border-red-200 text-red-800');
-            $answerContainer.removeClass('hidden');
-            
-            Toast.fire({ icon: 'error', title: 'Упс! Произошла ошибка' });
-
             if (xhr.responseJSON && typeof xhr.responseJSON.balance !== 'undefined') {
                 $('#balance-value').text(xhr.responseJSON.balance);
             }
@@ -141,8 +174,7 @@ $(document).ready(function () {
         .always(function () {
             $loader.addClass('hidden');
             $btn.prop('disabled', false);
-            // Clear input text to easily ask next question
-            $('#ai-prompt').val('');
+            $promptInput.focus();
         });
     });
 });

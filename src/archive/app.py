@@ -232,6 +232,20 @@ def ai_request():
         }), 402
 
     # === ЗАПРОС К GIGACHAT ===
+    # Получаем историю сообщений для контекста (последние 10)
+    cur.execute(
+        "SELECT role, content FROM ai_messages WHERE user_id = %s ORDER BY id ASC LIMIT 10",
+        (session["user_id"],)
+    )
+    history = cur.fetchall()
+    
+    messages_payload = []
+    for msg in history:
+        role = MessagesRole.USER if msg["role"] == "user" else MessagesRole.ASSISTANT
+        messages_payload.append(Messages(role=role, content=msg["content"]))
+        
+    messages_payload.append(Messages(role=MessagesRole.USER, content=prompt))
+
     try:
         from gigachat.models import ChatCompletionRequest, ChatMessage
 
@@ -263,6 +277,17 @@ def ai_request():
         "UPDATE users SET balance = balance - %s WHERE id = %s",
         (price, session["user_id"])
     )
+    
+    # Сохраняем запрос и ответ в историю
+    cur.execute(
+        "INSERT INTO ai_messages (user_id, role, content) VALUES (%s, %s, %s)",
+        (session["user_id"], "user", prompt)
+    )
+    cur.execute(
+        "INSERT INTO ai_messages (user_id, role, content) VALUES (%s, %s, %s)",
+        (session["user_id"], "assistant", answer)
+    )
+    
     cnx.commit()
 
     cur.execute("SELECT balance FROM users WHERE id = %s",
@@ -276,6 +301,20 @@ def ai_request():
         "balance": new_balance,
         "spent": price
     })
+
+@app.route("/api/ai_history", methods=["GET"])
+@login_required
+def get_ai_history():
+    cnx = get_db()
+    cur = cnx.cursor(dictionary=True)
+    cur.execute(
+        "SELECT role, content, created_at FROM ai_messages WHERE user_id = %s ORDER BY id ASC",
+        (session["user_id"],)
+    )
+    history = cur.fetchall()
+    cur.close(); cnx.close()
+    
+    return jsonify({"status": "ok", "history": history})
 
 
 # ==========================================================
