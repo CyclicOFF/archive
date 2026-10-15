@@ -42,6 +42,19 @@ def init_sqlite_db():
     )
     """)
 
+    # 4. Таблица транзакций
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS transactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        amount INTEGER NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        description TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+    """)
+
     # Устанавливаем дефолтную цену запроса
     cur.execute("""
     INSERT INTO settings (`key`, `value`) VALUES ('ai_price', '3')

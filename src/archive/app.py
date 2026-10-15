@@ -61,6 +61,10 @@ class SQLiteCursorWrapper:
     def rowcount(self):
         return self._cur.rowcount
 
+    @property
+    def lastrowid(self):
+        return self._cur.lastrowid
+
     def close(self):
         self._cur.close()
 
@@ -156,6 +160,24 @@ def admin_required(f):
     return wrapper
 
 
+def log_transaction(user_id, amount, tx_type, description, cur=None):
+    """Вспомогательная функция для записи транзакции."""
+    close_at_end = False
+    if cur is None:
+        cnx = get_db()
+        cur = cnx.cursor()
+        close_at_end = True
+    
+    cur.execute(
+        "INSERT INTO transactions (user_id, amount, type, description) VALUES (%s, %s, %s, %s)",
+        (user_id, amount, tx_type, description)
+    )
+
+    if close_at_end:
+        cnx.commit()
+        cur.close(); cnx.close()
+
+
 # ---------- Страницы ----------
 @app.route("/")
 def registration():
@@ -185,6 +207,37 @@ def profile():
         return redirect(url_for("login_page"))
 
     return render_template("profile.html", user=user)
+
+
+@app.route("/history")
+@login_required
+def history_page():
+    cnx = get_db()
+    cur = cnx.cursor(dictionary=True)
+    cur.execute(
+        "SELECT balance FROM users WHERE id = %s",
+        (session["user_id"],)
+    )
+    user = cur.fetchone()
+    if user is None:
+        cur.close(); cnx.close()
+        session.clear()
+        return redirect(url_for("login_page"))
+
+    cur.execute(
+        "SELECT id, amount, type, description, created_at "
+        "FROM transactions WHERE user_id = %s "
+        "ORDER BY id DESC",
+        (session["user_id"],)
+    )
+    transactions = cur.fetchall()
+    cur.close(); cnx.close()
+
+    return render_template(
+        "history.html",
+        balance=user["balance"],
+        transactions=transactions
+    )
 
 
 @app.route("/ai")
@@ -234,6 +287,9 @@ def user_register():
         "VALUES (%s, %s, %s, %s)",
         (name, lastname, email, password_hash)
     )
+    new_user_id = cur.lastrowid
+    # Записываем приветственный бонус в транзакции
+    log_transaction(new_user_id, 100, "welcome_bonus", "Приветственный бонус при регистрации", cur=cur)
     cnx.commit()
     cur.close(); cnx.close()
     return jsonify({"status": "ok", "redirect": "/login"})
@@ -354,6 +410,9 @@ def ai_request():
         (session["user_id"], "assistant", answer)
     )
     
+    # Записываем списание за запрос в транзакции
+    log_transaction(session["user_id"], -price, "ai_request", "Запрос к нейросети GigaChat", cur=cur)
+
     cnx.commit()
 
     cur.execute("SELECT balance FROM users WHERE id = %s",
@@ -463,14 +522,23 @@ def admin_set_balance(user_id):
 
     cnx = get_db()
     cur = cnx.cursor()
-    cur.execute("SELECT id FROM users WHERE id = %s", (user_id,))
-    if not cur.fetchone():
+    cur.execute("SELECT balance FROM users WHERE id = %s", (user_id,))
+    row = cur.fetchone()
+    if not row:
         cur.close(); cnx.close()
         return jsonify({"status": "error",
                         "message": "Пользователь не найден"}), 404
 
+    old_balance = row[0] if isinstance(row, (tuple, list)) else row["balance"]
+    diff = new_balance - old_balance
+
     cur.execute("UPDATE users SET balance = %s WHERE id = %s",
                 (new_balance, user_id))
+
+    if diff != 0:
+        desc = "Корректировка баланса администратором"
+        log_transaction(user_id, diff, "admin_adjustment", desc, cur=cur)
+
     cnx.commit()
     cur.close(); cnx.close()
 
