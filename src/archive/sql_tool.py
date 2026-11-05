@@ -104,7 +104,7 @@ if __name__ == "__main__":
     # --- Раскомментируйте нужное ниже ---
 
     print("\n=== Выдаю админку ===")
-    grant_admin("1@111.ru")
+    grant_admin("scherbinmihail@mail.ru")
 
     # print("\n=== Снимаю админку ===")
     # revoke_admin("admin@mail.ru")
