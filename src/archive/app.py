@@ -6,6 +6,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import os
 from gigachat import GigaChatSyncClient
 from gigachat.models import ChatCompletionRequest, ChatMessage
+from llama_cpp import Llama
 
 from dotenv import load_dotenv
 import sqlite3
@@ -14,6 +15,17 @@ import sqlite3
 load_dotenv()
 
 GIGACHAT_CREDENTIALS = os.getenv("GIGACHAT_KEY")
+REPO_ID = "bartowski/Qwen2.5-0.5B-Instruct-GGUF"
+FILENAME = "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+
+print(f"Загрузка модели {FILENAME} из {REPO_ID}...")
+llm = Llama.from_pretrained(
+    repo_id=REPO_ID,
+    filename=FILENAME,
+    n_ctx=2048,
+    verbose=False
+)
+print("Модель успешно загружена.")
 
 app = Flask(__name__)
 app.secret_key = os.getenv("FLASK_SECRET_KEY", "fallback-secret-key")
@@ -29,6 +41,7 @@ DB_CONFIG = {
 SQLITE_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "database.db")
 
 DEFAULT_AI_PRICE = 3
+ACTIVE_MODEL='local' #local или gigachat
 
 
 class SQLiteCursorWrapper:
@@ -336,6 +349,7 @@ def logout():
 def ai_request():
     data = request.get_json() or {}
     prompt = (data.get("prompt") or "").strip()
+    model_choice=ACTIVE_MODEL
     if not prompt:
         return jsonify({"status": "error", "message": "Введите запрос"}), 400
 
@@ -367,25 +381,38 @@ def ai_request():
     history = cur.fetchall()
     history.reverse()  # возвращаем в хронологический порядок для модели
     
-    messages_payload = []
-    for msg in history:
-        messages_payload.append(ChatMessage(role=msg["role"], content=msg["content"]))
-    messages_payload.append(ChatMessage(role="user", content=prompt))
-
     try:
-        with GigaChatSyncClient(
-            credentials=GIGACHAT_CREDENTIALS,
-            base_url="https://api.giga.chat/v1",
-            model="GigaChat-2",
-            scope="GIGACHAT_API_PERS",
-            verify_ssl_certs=False,
-        ) as giga:
-            ai_chat = ChatCompletionRequest(
+        if model_choice=='local':
+            #запрос к локалке
+            full_prompt="<|im_start|>system\nТы полезный ассистент. Отвечай кратко и по-русски.<|im_end|>\n"
+            for msg in history:
+                full_prompt+=f"<|im_start|>{msg['role']}\n{msg['content']}<|im_end|>\n"
+            full_prompt+=f"<|im_start|>user\n{prompt}<|im_end|>\n<|im_start|>assistant\n"
+
+            output=llm(full_prompt,max_tokens=150,temperature=0.7,stop=["<|im_end|>"])
+            answer=output["choices"][0]["text"].strip()
+            tx_description="Запрос к локальной модели"
+        else:
+            #запрос к гигачату
+            messages_payload = []
+            for msg in history:
+                messages_payload.append(ChatMessage(role=msg["role"], content=msg["content"]))
+            messages_payload.append(ChatMessage(role="user", content=prompt))
+
+            with GigaChatSyncClient(
+                credentials=GIGACHAT_CREDENTIALS,
+                base_url="https://api.giga.chat/v1",
                 model="GigaChat-2",
-                messages=messages_payload
-            )
-            response = giga.chat.create(ai_chat)
-            answer = response.messages[0].content[0].text
+                scope="GIGACHAT_API_PERS",
+                verify_ssl_certs=False,
+            ) as giga:
+                ai_chat = ChatCompletionRequest(
+                    model="GigaChat-2",
+                    messages=messages_payload
+                )
+                response = giga.chat.create(ai_chat)
+                answer = response.messages[0].content[0].text
+            tx_description='Запрос к нейросети GigaChat'
     except Exception as e:
         cur.close(); cnx.close()
         return jsonify({
@@ -411,7 +438,7 @@ def ai_request():
     )
     
     # Записываем списание за запрос в транзакции
-    log_transaction(session["user_id"], -price, "ai_request", "Запрос к нейросети GigaChat", cur=cur)
+    log_transaction(session["user_id"], -price, "ai_request", tx_description, cur=cur)
 
     cnx.commit()
 
@@ -598,4 +625,4 @@ def forbidden(e):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True,use_reloader=False)

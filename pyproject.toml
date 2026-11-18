@@ -7,6 +7,8 @@ requires-python = ">=3.8"
 dependencies = [
     "flask>=3.0.3",
     "gigachat>=0.2.3",
+    "huggingface-hub>=0.36.2",
+    "llama-cpp-python>=0.3.36",
     "mysql-connector-python>=9.0.0",
     "python-dotenv>=1.0.1",
 ]
